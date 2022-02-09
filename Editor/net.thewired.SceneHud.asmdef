@@ -1,7 +1,10 @@
 {
-    "name": "OmiyaGames.Template",
-    "references": [],
-    "includePlatforms": [],
+    "name": "OmiyaGames.Template.Editor",
+    "references": [
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

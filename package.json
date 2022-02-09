@@ -1,32 +1,19 @@
 {
-  "name": "com.omiyagames.template",
-  "displayName": "Omiya Games - Template Unity Package",
-  "version": "0.1.0-preview.1",
-  "unity": "2019.3",
-  "unityRelease": "7f1",
-  "description": "This is a template package, used as a basis to build a bigger one.",
+  "name": "net.thewired.SceneHud",
+  "displayName": "SceneHud",
+  "version": "v1",
+  "unity": "2020.3",
+  "unityRelease": "27f1",
+  "description": "SceneHud. Scene view tool thingy",
   "category": "Tool",
   "type": "tool",
   "license": "MIT",
   "author": {
-    "name": "Taro Omiya",
-    "email": "support@omiyagames.com",
-    "url": "https://www.omiyagames.com"
+    "name": "sebastian ulm",
+    "email": "sd23gl@gmail.com"
   },
   "dependencies": {
-    "com.unity.ext.nunit": "1.0.0"
   },
   "keywords": [
-    "Omiya Games",
-    "Scripts",
-    "Template",
-    "Tool"
-  ],
-  "samples": [
-    {
-      "displayName": "Example 1",
-      "description": "This sample is just an example",
-      "path": "Samples~/Example1"
-    }
   ]
 }

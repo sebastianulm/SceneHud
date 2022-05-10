@@ -35,4 +35,19 @@ namespace net.thewired.SceneHud
             }
         }
     }
+    public static class Textur2DExtensions
+    {
+        public static Texture2D Fill(this Texture2D tex, Color color)
+        {
+            for (var y = 0; y < tex.height; y++)
+            {
+                for (var x = 0; x < tex.height; x++)
+                {
+                    tex.SetPixel(x,y, color);
+                }
+            }
+            tex.Apply();
+            return tex;
+        }
+    }
 }

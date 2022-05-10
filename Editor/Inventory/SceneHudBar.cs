@@ -1,6 +1,6 @@
-using System;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Experimental.Rendering;
 
 namespace net.thewired.SceneHud
 {
@@ -9,8 +9,9 @@ namespace net.thewired.SceneHud
         private GameObject[] templateObj = new GameObject[9];
         private Texture2D[] previews = new Texture2D[9];
         private Texture2D empty;
-        public Vector2 buttonSize = new Vector2(50,50);
+        public Vector2 buttonSize = new Vector2(50, 50);
         public RectOffset buttonBorder = new RectOffset(2, 2, 2, 2);
+        public int selected = 3;
 
         public SceneHudBar()
         {
@@ -24,7 +25,17 @@ namespace net.thewired.SceneHud
             set
             {
                 templateObj[index] = value;
-                previews[index] = AssetPreview.GetAssetPreview(value);
+                var tex = AssetPreview.GetAssetPreview(value);
+                if (tex == null)
+                {
+                    previews[index] = new Texture2D(128,128);
+                    previews[index].Fill(Color.red);
+                }
+                else
+                {
+                    previews[index] = new Texture2D(tex.width,tex.height, tex.graphicsFormat, tex.mipmapCount,TextureCreationFlags.None);
+                    Graphics.CopyTexture(tex, previews[index]);
+                }
             }
         }
         public void Render(SceneView sceneView)
@@ -32,48 +43,61 @@ namespace net.thewired.SceneHud
             var rect = new Rect(
                 sceneView.position.width / 2 - BarWidth / 2f,
                 (sceneView.position.height - buttonSize.y - 40),
-                BarWidth, 
+                BarWidth,
                 buttonSize.y
             );
             
-            GUILayout.BeginArea(rect);
+            var style = new GUIStyle()
+            {
+                fixedWidth = buttonSize.x ,
+                fixedHeight = buttonSize.y,
+                padding = buttonBorder,
+            };
+            
+            GUIStyle gsTest = new GUIStyle();
+            gsTest.normal.background = Texture2D.whiteTexture;
+            Handles.BeginGUI();
+            GUILayout.BeginArea(rect, gsTest);
             GUILayout.BeginHorizontal();
             // Draw buttons for inventory items.
             for (var index = 0; index < templateObj.Length; index++)
             {
-                DrawItem(index);
+               DrawItem(index);
             }
             GUILayout.EndHorizontal();
             GUILayout.EndArea();
+            
+            Handles.EndGUI();
+
         }
         private void DrawItem(int index)
         {
-            GameObject item = templateObj[index];
-            if (item == null)
+            if (selected == index)
             {
-                // Just show a blank non-clickable button.
-                GUI.enabled = false;
+                var lol = GUI.skin.GetStyle("HelpBox");
                 var style = new GUIStyle()
                 {
                     fixedWidth = buttonSize.x,
                     fixedHeight = buttonSize.y,
-                    padding = buttonBorder
+                    padding = buttonBorder,
+                    margin = buttonBorder,
+                    border = buttonBorder,
+                    onNormal = new GUIStyleState()
+                    {
+                        background = Texture2D.redTexture,
+                    }
                 };
-                item.JustRender(Camera.current, Matrix4x4.identity);
-                GUILayout.Button(empty, style);
-                GUI.enabled = true;
+                GUILayout.Button(previews[index], style);
             }
             else
             {
-                GUI.enabled = false;
                 var style = new GUIStyle()
-                {               
-                    fixedWidth = buttonSize.x,
+                {
+                    fixedWidth = buttonSize.x ,
                     fixedHeight = buttonSize.y,
-                    padding = buttonBorder
+                    padding = buttonBorder,
                 };
                 GUILayout.Button(previews[index], style);
-                GUI.enabled = true;
             }
         }
     }

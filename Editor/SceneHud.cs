@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.Experimental.GraphView;
 using UnityEngine;
 
 namespace net.thewired.SceneHud
@@ -19,7 +20,6 @@ namespace net.thewired.SceneHud
         }
         private static void ScenePhase(SceneView sceneView)
         {
-            input.consumeKeys = true;
         }
         private static void HudPhase(SceneView sceneView)
         {
@@ -31,20 +31,51 @@ namespace net.thewired.SceneHud
             selectables = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(x => x.GetTypes())
                 .Where(x => interfaceType.IsAssignableFrom(x) && !x.IsInterface && !x.IsAbstract)
+                .Where(x => !typeof(MonoBehaviour).IsAssignableFrom(x))
                 .Select(x => Activator.CreateInstance(x))
                 .Cast<IRaycastSelectable>()
                 .ToList();
             Debug.Log("Registered ISelectables: " + string.Join(",", selectables.Select(x => x.GetType().Name)));
             input.OnClick += OnClick;
+            input.OnMouseMove += OnMouseMove;
         }
-        private static void OnClick(int i, Vector2 vector2)
+        private static void OnMouseMove(Vector2 from, Vector2 to)
         {
-            if (i != 0) 
+            var results = new List<(float, GameObject, IRaycastSelectable, object)>();
+            var cams = SceneView.GetAllSceneCameras();
+            foreach (var camera in cams)
+            {
+                var sceenSize = camera.pixelRect;
+                var mousePos = to;
+                mousePos.y = sceenSize.height - mousePos.y;
+                var ray = camera.ScreenPointToRay(mousePos);
+                foreach (var o in selectables)
+                {
+                    if (o.Cast(ray, mousePos, out float distance, out var selectedObjet, out object context))
+                    {
+                        results.Add((distance, selectedObjet, o, context));
+                    }
+                }
+            }
+            static int SortByDistance((float, GameObject, IRaycastSelectable, object) x, (float, GameObject, IRaycastSelectable, object) y)
+            {
+                return x.Item1.CompareTo(y.Item1);
+            }
+            results.Sort(SortByDistance);
+            var result = results.FirstOrDefault();
+            foreach (var o in selectables)
+            {
+                o.HidePreview();
+            }
+            if (result.Item2 == null)
+            {
                 return;
-            var results = new List<(float, GameObject)>();
-            Vector2 lastClick = Vector2.zero;
-            float lastDistance = 0f;
-            var comparer = new CompareRaycastTargets();
+            }
+            result.Item3.DrawPreview(result.Item2, result.Item4, SceneHudBar.Content, SceneHudBar.Selected);
+        }
+        private static bool OnClick(int i, Vector2 vector2)
+        {
+            var results = new List<(float, GameObject, IRaycastSelectable, object)>();
             var cams = SceneView.GetAllSceneCameras();
             foreach (var camera in cams)
             {
@@ -52,38 +83,25 @@ namespace net.thewired.SceneHud
                 var mousePos = vector2;
                 mousePos.y = sceenSize.height - mousePos.y;
                 var ray = camera.ScreenPointToRay(mousePos);
-                Debug.DrawLine(camera.transform.position, ray.origin, Color.black, 2);
                 foreach (var o in selectables)
                 {
-                    if (o.Cast(ray, mousePos, out float distance, out var selectedObjet))
+                    if (o.Cast(ray, mousePos, out float distance, out var selectedObjet, out object context))
                     {
-                        results.Add((distance, selectedObjet));
+                        results.Add((distance, selectedObjet, o, context));
                     }
                 }
             }
-            static int SortByDistance((float, GameObject) x, (float, GameObject) y)
+            if (results.Count <= 0)
+                return false;
+            static int SortByDistance((float, GameObject,IRaycastSelectable, object) x, (float, GameObject,IRaycastSelectable, object) y)
             {
                 return x.Item1.CompareTo(y.Item1);
             }
             results.Sort(SortByDistance);
-            if (lastClick == vector2)
-            {
-                var result = results.BinarySearch((lastDistance, null), comparer);
-                if (result >= 0)
-                {
-                    result = (result + 1) % results.Count;
-                    var selected = results[result];
-                    Selection.activeGameObject = selected.Item2.gameObject;
-                    lastDistance = selected.Item1;
-                }
-            }
-            else
-            {
-                var selected = results.FirstOrDefault();
-                Selection.activeGameObject = selected.Item2 != null ? selected.Item2.gameObject : null;
-                lastDistance = selected.Item1;
-            }
+            var place = results.FirstOrDefault();
+            place.Item3.Click(i, place.Item4, SceneHudBar.Content, SceneHudBar.Selected );
             results.Clear();
+            return true;
         }
     }
 }

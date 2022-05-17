@@ -13,19 +13,19 @@ namespace net.thewired.SceneHud
         public Vector2 mousePos;
         public bool[] mouseState = new bool[MaxPointers];
         public Vector2[] mouseDownPos = new Vector2[MaxPointers];
-        public bool consumeKeys;
-        public readonly Dictionary<KeyCode, Action<KeyCode>> keyDownListeners = new Dictionary<KeyCode, Action<KeyCode>>();
-        public readonly Dictionary<KeyCode, Action<KeyCode>> keyUpListeners = new Dictionary<KeyCode, Action<KeyCode>>();
         public bool isMouseOver;
-        public Action<int> OnScroll;
-        public Action<int, Vector2> OnClick;
-        public Action<int, Vector2> OnMouseDown;
-        public Action<int, Vector2, Vector2> OnMouseUp;
-        public Action<Vector2, Vector2> OnMouseMove;
+        public event Func<int, bool> OnScroll;
+        public event Func<int, Vector2, bool> OnClick;
+        public event Func<int, Vector2, bool> OnMouseDown;
+        public event Func<int, Vector2, Vector2, bool> OnMouseUp;
+        public event Action<Vector2, Vector2> OnMouseMove;
+        public event Func<KeyCode, bool> OnKeyDown;
+        public event Func<KeyCode, bool> OnKeyUp;
+
         public void ProcessEvent(Event evt)
         {
             //Weird Unity incantation to make left mouse work in editor;
-            HandleUtility.AddControl(-1,0);
+            HandleUtility.AddControl(-1, 0);
             ProcessMouseOver();
             ProcessMouse();
             ProcessKeyboard();
@@ -62,19 +62,45 @@ namespace net.thewired.SceneHud
                     mousePos = Event.current.mousePosition;
                     mouseState[Event.current.button] = true;
                     mouseDownPos[Event.current.button] = mousePos;
-                    OnMouseDown?.Invoke(Event.current.button, mousePos);
-                    //if (Event.current.button == 2) Event.current.Use();
-                    //if (Event.current.button == 0) Event.current.Use();
+                    if (OnMouseDown != null)
+                    {
+                        var consume = false;
+                        foreach (var @delegate in OnMouseDown.GetInvocationList())
+                        {
+                            var del = (Func<int, Vector2, bool>)@delegate;
+                            consume |= del(Event.current.button, mousePos);
+                        }
+                        if (consume)
+                        {
+                            Event.current.Use();
+                        }
+                    }
                 }
                     break;
                 case EventType.MouseUp:
                 {
                     mousePos = Event.current.mousePosition;
                     mouseState[Event.current.button] = false;
-                    OnMouseUp?.Invoke(Event.current.button, mousePos, mouseDownPos[Event.current.button]);
-                    if (Vector2.Distance(mouseDownPos[Event.current.button], mousePos) < 2)
+                    var consume = false;
+                    if (OnMouseUp != null)
                     {
-                        OnClick(Event.current.button, mousePos);
+                        foreach (var @delegate in OnMouseUp.GetInvocationList())
+                        {
+                            var del = (Func<int, Vector2, bool>)@delegate;
+                            consume |= del(Event.current.button, mousePos);
+                        }
+                    }
+                    if (OnClick != null && Vector2.Distance(mouseDownPos[Event.current.button], mousePos) < 2)
+                    {
+                        foreach (var @delegate in OnClick.GetInvocationList())
+                        {
+                            var del = (Func<int, Vector2, bool>)@delegate;
+                            consume |= del(Event.current.button, mousePos);
+                        }
+                    }
+                    if (consume)
+                    {
+                        Event.current.Use();
                     }
                 }
                     break;
@@ -98,10 +124,15 @@ namespace net.thewired.SceneHud
             {
                 case EventType.KeyDown:
                 {
-                    if (keyDownListeners.TryGetValue(Event.current.keyCode, out var action))
+                    var consume = false;
+                    if (OnKeyDown != null)
                     {
-                        action?.Invoke(Event.current.keyCode);
-                        if (consumeKeys)
+                        foreach (var @delegate in OnKeyDown.GetInvocationList())
+                        {
+                            var del = (Func<KeyCode, bool>)@delegate;
+                            consume |= del(Event.current.keyCode);
+                        }
+                        if (consume)
                         {
                             Event.current.Use();
                         }
@@ -110,10 +141,15 @@ namespace net.thewired.SceneHud
                     break;
                 case EventType.KeyUp:
                 {
-                    if (keyUpListeners.TryGetValue(Event.current.keyCode, out var action))
+                    var consume = false;
+                    if (OnKeyUp != null)
                     {
-                        action?.Invoke(Event.current.keyCode);
-                        if (consumeKeys)
+                        foreach (var @delegate in OnKeyUp.GetInvocationList())
+                        {
+                            var del = (Func<KeyCode, bool>)@delegate;
+                            consume |= del(Event.current.keyCode);
+                        }
+                        if (consume)
                         {
                             Event.current.Use();
                         }

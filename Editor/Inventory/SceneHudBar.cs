@@ -79,7 +79,7 @@ namespace net.thewired.SceneHud
         private void BuildButtons(IBarContent bar)
         {
             barContainer.Clear();
-            for (var i = 0; i < bar.Length; i++)
+            for (var i = 0; i < bar?.Length; i++)
             {
                 var button = new Button()
                 {
@@ -92,10 +92,10 @@ namespace net.thewired.SceneHud
                         borderLeftWidth = 5,
                         borderRightWidth = 5,
                         unityTextAlign = new StyleEnum<TextAnchor>(TextAnchor.LowerLeft),
-                        backgroundImage = bar.Icon(i)
+                        backgroundImage = bar?.Icon(i)
                     },
                     text = $"{i+1}",
-                    tooltip = bar.Tooltip(i),
+                    tooltip = bar?.Tooltip(i),
                     clickable = new Clickable( OnButtonClicked)
                     {
                         activators = { 
@@ -128,7 +128,8 @@ namespace net.thewired.SceneHud
         }
         private void Select(int index)
         {
-            index = Mathf.Clamp(index, 0, barContainer.childCount);
+            index = Mathf.Clamp(index, 0, barContainer.childCount-1);
+            selected = Mathf.Clamp(selected, 0, barContainer.childCount-1);
             barContainer[selected].style.borderBottomColor = inactiveColor;
             barContainer[selected].style.borderLeftColor = inactiveColor;        
             barContainer[selected].style.borderRightColor = inactiveColor;

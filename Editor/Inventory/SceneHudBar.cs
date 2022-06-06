@@ -16,13 +16,13 @@ namespace net.thewired.SceneHud
     public class SceneHudBar : Overlay
     {
         public const string visualID = "scene-hud.button-bar.root";
-        public static Color activeColor = new Color(0.2f,0.4f,0.5f);
-        public static Color inactiveColor =  new Color(0.2f,0.2f,0.2f);
+        public static Color activeColor = new Color(0.2f, 0.4f, 0.5f);
+        public static Color inactiveColor = new Color(0.2f, 0.2f, 0.2f);
         public static SceneHudBar Instance => instance;
         public static IBarContent Content => instance.currentContent;
         public static int Selected => instance.selected;
         private static SceneHudBar instance;
-        private VisualElement root;
+        private VisualElement panel;
         private VisualElement barContainer;
         private int selected;
         private IBarContent currentContent;
@@ -34,14 +34,15 @@ namespace net.thewired.SceneHud
             IBarContent.Add += (b) =>
             {
                 currentContent = b;
-                root.schedule.Execute(() => BuildButtons(b));
+                panel.schedule.Execute(() => BuildButtons(b));
+                SceneHud.RegisterBar(this);
+                RegisterHotkeys();
             };
-            SceneHud.input.OnKeyDown += HandleKey;
         }
         public override void OnWillBeDestroyed()
         {
             instance = null;
-            SceneHud.input.OnKeyDown -= HandleKey;
+            //SceneHud.input.OnKeyDown -= HandleKey;
         }
         public override VisualElement CreatePanelContent()
         {
@@ -50,7 +51,7 @@ namespace net.thewired.SceneHud
                 return new VisualElement();
             }
             Debug.Log("Panel Content");
-            root = new VisualElement()
+            panel = new VisualElement()
             {
                 name = visualID,
                 style =
@@ -65,16 +66,9 @@ namespace net.thewired.SceneHud
                     flexDirection = FlexDirection.Row
                 }
             };
-            root.Add(barContainer);
-            root.schedule.Execute(() =>
-            {
-                var bar = IBarContent.All.FirstOrDefault();
-                if (bar != null)
-                {
-                    BuildButtons(bar);
-                }
-            });
-            return root;
+            panel.Add(barContainer);
+            Rebuild();
+            return panel;
         }
         private void BuildButtons(IBarContent bar)
         {
@@ -94,14 +88,24 @@ namespace net.thewired.SceneHud
                         unityTextAlign = new StyleEnum<TextAnchor>(TextAnchor.LowerLeft),
                         backgroundImage = bar?.Icon(i)
                     },
-                    text = $"{i+1}",
+                    text = $"{i + 1}",
                     tooltip = bar?.Tooltip(i),
-                    clickable = new Clickable( OnButtonClicked)
+                    clickable = new Clickable(OnButtonClicked)
                     {
-                        activators = { 
-                            new ManipulatorActivationFilter() {clickCount = 1}, 
-                            new ManipulatorActivationFilter() {clickCount = 2},
-                            new ManipulatorActivationFilter() {modifiers = EventModifiers.Control}
+                        activators =
+                        {
+                            new ManipulatorActivationFilter()
+                            {
+                                clickCount = 1
+                            },
+                            new ManipulatorActivationFilter()
+                            {
+                                clickCount = 2
+                            },
+                            new ManipulatorActivationFilter()
+                            {
+                                modifiers = EventModifiers.Control
+                            }
                         }
                     }
                 };
@@ -128,17 +132,18 @@ namespace net.thewired.SceneHud
         }
         private void Select(int index)
         {
-            index = Mathf.Clamp(index, 0, barContainer.childCount-1);
-            selected = Mathf.Clamp(selected, 0, barContainer.childCount-1);
+            CheckButtonGraphics();
+            index = Mathf.Clamp(index, 0, barContainer.childCount - 1);
+            selected = Mathf.Clamp(selected, 0, barContainer.childCount - 1);
             barContainer[selected].style.borderBottomColor = inactiveColor;
-            barContainer[selected].style.borderLeftColor = inactiveColor;        
+            barContainer[selected].style.borderLeftColor = inactiveColor;
             barContainer[selected].style.borderRightColor = inactiveColor;
             barContainer[selected].style.borderTopColor = inactiveColor;
-            
+
             selected = index;
 
             barContainer[index].style.borderBottomColor = activeColor;
-            barContainer[index].style.borderLeftColor = activeColor;        
+            barContainer[index].style.borderLeftColor = activeColor;
             barContainer[index].style.borderRightColor = activeColor;
             barContainer[index].style.borderTopColor = activeColor;
         }
@@ -148,6 +153,45 @@ namespace net.thewired.SceneHud
                 return false;
             Select(k - KeyCode.Alpha1);
             return true;
+        }
+        private void CheckButtonGraphics()
+        {
+            var bar = IBarContent.All.FirstOrDefault();
+            if (bar != null)
+            {
+                for (var i = 0; i < bar?.Length; i++)
+                {
+                    var icon = bar.Icon(i);
+                    if (icon != null)
+                    {
+                        barContainer[i].style.backgroundImage = icon;
+                    }
+                }
+            }
+        }
+        private void RegisterHotkeys()
+        {
+            var root = this.containerWindow.rootVisualElement;
+            while (root.parent != null)
+            {
+                root = root.parent;
+            }
+            root.RegisterCallback<KeyUpEvent>(OnKeyUp);
+        }
+        public void Rebuild()
+        {
+            panel.schedule.Execute(() =>
+            {
+                var bar = IBarContent.All.FirstOrDefault();
+                if (bar != null)
+                {
+                    BuildButtons(bar);
+                }
+            });
+        }
+        private void OnKeyUp(KeyUpEvent evt)
+        {
+            Debug.Log("Key Up");
         }
     }
 }

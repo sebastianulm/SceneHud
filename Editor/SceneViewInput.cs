@@ -1,162 +1,115 @@
-using System;
 using System.Collections.Generic;
-using System.Diagnostics.Eventing.Reader;
-using Mono.Cecil;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace net.thewired.SceneHud
 {
     public class SceneViewInput
     {
-        private const int MaxPointers = 10;
-        public Vector2 mousePos;
-        public bool[] mouseState = new bool[MaxPointers];
-        public Vector2[] mouseDownPos = new Vector2[MaxPointers];
-        public bool isMouseOver;
-        public event Func<int, bool> OnScroll;
-        public event Func<int, Vector2, bool> OnClick;
-        public event Func<int, Vector2, bool> OnMouseDown;
-        public event Func<int, Vector2, Vector2, bool> OnMouseUp;
-        public event Action<Vector2, Vector2> OnMouseMove;
-        public event Func<KeyCode, bool> OnKeyDown;
-        public event Func<KeyCode, bool> OnKeyUp;
+        private VisualElement root;
+        public SceneViewInput(VisualElement root)
+        {
+            while (root.parent != null)
+            {
+                root = root.parent;
+            }
+            
+            root.RegisterCallback<WheelEvent>(HandleWheel, TrickleDown.TrickleDown);
+            root.RegisterCallback<ClickEvent>(HandleClick);
+            root.RegisterCallback<MouseMoveEvent>(HandleMouseMove);
+            root.RegisterCallback<KeyDownEvent>(HandleKeyDown);
+            root.RegisterCallback<KeyUpEvent>(HandleKeyUp);
 
-        public void ProcessEvent(Event evt)
+            this.root = root;
+        }
+        private void HandleKeyDown(KeyDownEvent evt)
         {
-            //Weird Unity incantation to make left mouse work in editor;
-            HandleUtility.AddControl(-1, 0);
-            ProcessMouseOver();
-            ProcessMouse();
-            ProcessKeyboard();
-            switch (evt.type)
+            var targetVis = evt.target as VisualElement;
+            if (targetVis == null || targetVis.name != "unity-scene-view-camera-rect")
             {
-                case EventType.Repaint:
-                {
-                }
-                    break;
+                return;
+            }
+            
+        }
+        private void HandleKeyUp(KeyUpEvent evt)
+        {
+            var targetVis = evt.target as VisualElement;
+            if (targetVis == null || targetVis.name != "unity-scene-view-camera-rect")
+            {
+                return;
             }
         }
-        private void ProcessMouseOver()
+        private void HandleWheel(WheelEvent wheel)
         {
-            switch (Event.current.type)
-            {
-                case EventType.MouseEnterWindow:
-                {
-                    isMouseOver = true;
-                }
-                    break;
-                case EventType.MouseLeaveWindow:
-                {
-                    isMouseOver = false;
-                }
-                    break;
-            }
+            Debug.Log("Wheel event: " + wheel.mousePosition + " " + wheel.delta);
         }
-        private void ProcessMouse()
+        private void HandleMouseMove(MouseMoveEvent evt)
         {
-            switch (Event.current.type)
+            var targetVis = evt.target as VisualElement;
+            if (targetVis == null || targetVis.name != "unity-scene-view-camera-rect")
             {
-                case EventType.MouseDown:
-                {
-                    mousePos = Event.current.mousePosition;
-                    mouseState[Event.current.button] = true;
-                    mouseDownPos[Event.current.button] = mousePos;
-                    if (OnMouseDown != null)
-                    {
-                        var consume = false;
-                        foreach (var @delegate in OnMouseDown.GetInvocationList())
-                        {
-                            var del = (Func<int, Vector2, bool>)@delegate;
-                            consume |= del(Event.current.button, mousePos);
-                        }
-                        if (consume)
-                        {
-                            Event.current.Use();
-                        }
-                    }
-                }
-                    break;
-                case EventType.MouseUp:
-                {
-                    mousePos = Event.current.mousePosition;
-                    mouseState[Event.current.button] = false;
-                    var consume = false;
-                    if (OnMouseUp != null)
-                    {
-                        foreach (var @delegate in OnMouseUp.GetInvocationList())
-                        {
-                            var del = (Func<int, Vector2, bool>)@delegate;
-                            consume |= del(Event.current.button, mousePos);
-                        }
-                    }
-                    if (OnClick != null && Vector2.Distance(mouseDownPos[Event.current.button], mousePos) < 2)
-                    {
-                        foreach (var @delegate in OnClick.GetInvocationList())
-                        {
-                            var del = (Func<int, Vector2, bool>)@delegate;
-                            consume |= del(Event.current.button, mousePos);
-                        }
-                    }
-                    if (consume)
-                    {
-                        Event.current.Use();
-                    }
-                }
-                    break;
-                case EventType.MouseMove:
-                {
-                    var lastMousePos = mousePos;
-                    mousePos = Event.current.mousePosition;
-                    OnMouseMove?.Invoke(lastMousePos, mousePos);
-                }
-                    break;
-                case EventType.ScrollWheel:
-                {
-                    OnScroll?.Invoke(Mathf.RoundToInt(Event.current.delta.y));
-                }
-                    break;
+                return;
             }
+            var result = FindSelectable(evt.mousePosition, targetVis);
+            foreach (var o in SceneHud.Selectables)
+            {
+                o.HidePreview();
+            }
+            if (result.Item2 == null)
+            {
+                return;
+            }
+            result.Item3.DrawPreview(result.Item2, result.Item4, SceneHudBar.Content, SceneHudBar.Selected);
         }
-        private void ProcessKeyboard()
+        
+        private void HandleClick(ClickEvent clickEvent)
         {
-            switch (Event.current.type)
+            var targetVis = clickEvent.target as VisualElement;
+            if (targetVis == null || targetVis.name != "unity-scene-view-camera-rect")
             {
-                case EventType.KeyDown:
-                {
-                    var consume = false;
-                    if (OnKeyDown != null)
-                    {
-                        foreach (var @delegate in OnKeyDown.GetInvocationList())
-                        {
-                            var del = (Func<KeyCode, bool>)@delegate;
-                            consume |= del(Event.current.keyCode);
-                        }
-                        if (consume)
-                        {
-                            Event.current.Use();
-                        }
-                    }
-                }
-                    break;
-                case EventType.KeyUp:
-                {
-                    var consume = false;
-                    if (OnKeyUp != null)
-                    {
-                        foreach (var @delegate in OnKeyUp.GetInvocationList())
-                        {
-                            var del = (Func<KeyCode, bool>)@delegate;
-                            consume |= del(Event.current.keyCode);
-                        }
-                        if (consume)
-                        {
-                            Event.current.Use();
-                        }
-                    }
-                }
-                    break;
+                return;
             }
+            var result = FindSelectable(clickEvent.position, targetVis);
+            foreach (var o in SceneHud.Selectables)
+            {
+                o.HidePreview();
+            }
+            if (result.Item2 == null)
+            {
+                return;
+            }
+            result.Item3.DrawPreview(result.Item2, result.Item4, SceneHudBar.Content, SceneHudBar.Selected);
+            result.Item3.Click(result.Item4, SceneHudBar.Content, SceneHudBar.Selected);
+        }
+        private (float, GameObject, IRaycastSelectable, object) FindSelectable(Vector3 pos, VisualElement element)
+        {
+            pos.x -= element.worldBound.position.x;
+            pos.y -= element.worldBound.position.y;
+            var results = new List<(float, GameObject, IRaycastSelectable, object)>();
+            var cams = SceneView.GetAllSceneCameras();
+            foreach (var camera in cams)
+            {
+                var sceenSize = camera.pixelRect;
+                var mousePos = pos;
+                mousePos.y = sceenSize.height - mousePos.y;
+                var ray = camera.ScreenPointToRay(mousePos);
+                foreach (var o in SceneHud.Selectables)
+                {
+                    if (o.Cast(ray, mousePos, out float distance, out var selectedObjet, out object context))
+                    {
+                        results.Add((distance, selectedObjet, o, context));
+                    }
+                }
+            }
+            static int SortByDistance((float, GameObject, IRaycastSelectable, object) x, (float, GameObject, IRaycastSelectable, object) y)
+            {
+                return x.Item1.CompareTo(y.Item1);
+            }
+            results.Sort(SortByDistance);
+            var result = results.FirstOrDefault();
+            return result;
         }
     }
 }

@@ -21,18 +21,10 @@ namespace net.thewired.SceneHud
             context = null;
             return false;
         }
-        public void Click(int button, object context, IBarContent barContent, int barSelected )
+        public void Click(object context, IBarContent barContent, int barSelected )
         {
             var hitInfo = ((HitInfoHolder)context).hit;
-            switch (button)
-            {
-                case 0:
-                    Object.Instantiate(barContent.Get(barSelected), hitInfo.point, Quaternion.AngleAxis(0, hitInfo.normal),  hitInfo.collider.transform);
-                   break;
-                case 2:
-                    Object.Destroy(hitInfo.collider.gameObject);
-                    break;
-            }
+            Object.Instantiate(barContent.Get(barSelected), hitInfo.point, Quaternion.AngleAxis(0, hitInfo.normal),  hitInfo.collider.transform);
         }
         public void DrawPreview(GameObject selected, object context, IBarContent barContent, int barSelected)
         {

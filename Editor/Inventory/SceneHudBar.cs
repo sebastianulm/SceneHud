@@ -147,8 +147,9 @@ namespace net.thewired.SceneHud
             barContainer[index].style.borderRightColor = activeColor;
             barContainer[index].style.borderTopColor = activeColor;
         }
-        private bool HandleKey(KeyCode k)
+        private bool HandleKey(Event @event)
         {
+            var k = @event.keyCode;
             if (k < KeyCode.Alpha0 || k > KeyCode.Alpha9)
                 return false;
             Select(k - KeyCode.Alpha1);
@@ -171,12 +172,10 @@ namespace net.thewired.SceneHud
         }
         private void RegisterHotkeys()
         {
-            var root = this.containerWindow.rootVisualElement;
-            while (root.parent != null)
+            for (int i = (int)KeyCode.Alpha0; i <= (int)KeyCode.Alpha9; i++)
             {
-                root = root.parent;
+                SceneHud.RegisterHotkey((KeyCode)i , HandleKey);
             }
-            root.RegisterCallback<KeyUpEvent>(OnKeyUp);
         }
         public void Rebuild()
         {
@@ -188,10 +187,6 @@ namespace net.thewired.SceneHud
                     BuildButtons(bar);
                 }
             });
-        }
-        private void OnKeyUp(KeyUpEvent evt)
-        {
-            Debug.Log("Key Up");
         }
     }
 }

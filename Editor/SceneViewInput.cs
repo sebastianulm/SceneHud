@@ -1,8 +1,10 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
+using Debug = UnityEngine.Debug;
 
 namespace net.thewired.SceneHud
 {
@@ -19,27 +21,7 @@ namespace net.thewired.SceneHud
             root.RegisterCallback<WheelEvent>(HandleWheel, TrickleDown.TrickleDown);
             root.RegisterCallback<ClickEvent>(HandleClick);
             root.RegisterCallback<MouseMoveEvent>(HandleMouseMove);
-            root.RegisterCallback<KeyDownEvent>(HandleKeyDown);
-            root.RegisterCallback<KeyUpEvent>(HandleKeyUp);
-
             this.root = root;
-        }
-        private void HandleKeyDown(KeyDownEvent evt)
-        {
-            var targetVis = evt.target as VisualElement;
-            if (targetVis == null || targetVis.name != "unity-scene-view-camera-rect")
-            {
-                return;
-            }
-            
-        }
-        private void HandleKeyUp(KeyUpEvent evt)
-        {
-            var targetVis = evt.target as VisualElement;
-            if (targetVis == null || targetVis.name != "unity-scene-view-camera-rect")
-            {
-                return;
-            }
         }
         private void HandleWheel(WheelEvent wheel)
         {
@@ -87,19 +69,31 @@ namespace net.thewired.SceneHud
         {
             pos.x -= element.worldBound.position.x;
             pos.y -= element.worldBound.position.y;
+            pos.x /= element.worldBound.width;
+            pos.y /= element.worldBound.height;
             var results = new List<(float, GameObject, IRaycastSelectable, object)>();
             var cams = SceneView.GetAllSceneCameras();
             foreach (var camera in cams)
             {
                 var sceenSize = camera.pixelRect;
-                var mousePos = pos;
-                mousePos.y = sceenSize.height - mousePos.y;
+                var mousePos = new Vector3
+                {
+                    x = pos.x * sceenSize.width,
+                    y = (1- pos.y) * sceenSize.height
+                };
                 var ray = camera.ScreenPointToRay(mousePos);
                 foreach (var o in SceneHud.Selectables)
                 {
-                    if (o.Cast(ray, mousePos, out float distance, out var selectedObjet, out object context))
+                    try
                     {
-                        results.Add((distance, selectedObjet, o, context));
+                        if (o.Cast(ray, mousePos, out float distance, out var selectedObjet, out object context))
+                        {
+                            results.Add((distance, selectedObjet, o, context));
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.Log(e);
                     }
                 }
             }

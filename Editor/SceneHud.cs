@@ -45,9 +45,13 @@ namespace net.thewired.SceneHud
                 .ToList();
             foreach (var hotkey in hotkeys)
             {
-               RegisterHotkey(hotkey.KeyCode, hotkey.OnHotkey);
+                foreach (var keyCode in hotkey.KeyCode)
+                {
+                    RegisterHotkey(keyCode, hotkey.OnHotkey);
+                }
             }
         }
+
         internal static void RegisterHotkey(KeyCode keyCode, Func<Event, bool> func)
         {
             if (!KeyboardIntercept.TryGetValue(keyCode, out var list))
@@ -76,7 +80,7 @@ namespace net.thewired.SceneHud
                     {
                         try
                         {
-                            if (func(Event.current)) 
+                            if (func(Event.current))
                                 Event.current.Use();
                         }
                         catch (Exception e)

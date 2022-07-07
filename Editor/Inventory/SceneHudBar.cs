@@ -14,25 +14,30 @@ namespace net.thewired.SceneHud
         public static Color activeColor = new Color(0.2f, 0.4f, 0.5f);
         public static Color inactiveColor = new Color(0.2f, 0.2f, 0.2f);
         public static SceneHudBar Instance => instance;
-        public static IBarContent Content => instance.currentContent;
+        public static IBarContent Content => currentContent;
         public static int Selected => instance.selected;
         private static SceneHudBar instance;
         private VisualElement panel;
         private VisualElement barContainer;
         private int selected;
-        private IBarContent currentContent;
+        private static IBarContent currentContent;
+        public void SetBarContent(IBarContent barContent)
+        {
+            currentContent = barContent;
+            if (Instance != null)
+            {
+               Rebuild();
+            }
+        }
         public override void OnCreated()
         {
             if (instance != null)
                 return;
             instance = this;
-            IBarContent.Add += (b) =>
+            if (currentContent != null)
             {
-                currentContent = b;
-                panel.schedule.Execute(() => BuildButtons(b));
-                SceneHud.RegisterBar(this);
-                RegisterHotkeys();
-            };
+                Rebuild();
+            }
         }
         public override void OnWillBeDestroyed()
         {
@@ -45,7 +50,6 @@ namespace net.thewired.SceneHud
             {
                 return new VisualElement();
             }
-            Debug.Log("Panel Content");
             panel = new VisualElement()
             {
                 name = visualID,
@@ -152,12 +156,11 @@ namespace net.thewired.SceneHud
         }
         private void CheckButtonGraphics()
         {
-            var bar = IBarContent.All.FirstOrDefault();
-            if (bar != null)
+            if (currentContent != null)
             {
-                for (var i = 0; i < bar?.Length; i++)
+                for (var i = 0; i < currentContent.Length; i++)
                 {
-                    var icon = bar.Icon(i);
+                    var icon = currentContent.Icon(i);
                     if (icon != null)
                     {
                         barContainer[i].style.backgroundImage = icon;
@@ -176,11 +179,9 @@ namespace net.thewired.SceneHud
         {
             panel.schedule.Execute(() =>
             {
-                var bar = IBarContent.All.FirstOrDefault();
-                if (bar != null)
-                {
-                    BuildButtons(bar);
-                }
+                BuildButtons(currentContent);
+                SceneHud.RegisterBar(this);
+                RegisterHotkeys();
             });
         }
     }

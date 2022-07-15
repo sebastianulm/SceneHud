@@ -177,7 +177,7 @@ namespace net.thewired.SceneHud
         }
         public void Rebuild()
         {
-            panel.schedule.Execute(() =>
+            panel?.schedule.Execute(() =>
             {
                 BuildButtons(currentContent);
                 SceneHud.RegisterBar(this);

@@ -93,7 +93,7 @@ namespace net.thewired.SceneHud
                     }
                     catch (Exception e)
                     {
-                        Debug.Log(e);
+                        Debug.LogException(e);
                     }
                 }
             }

@@ -21,13 +21,10 @@ namespace net.thewired.SceneHud
         private VisualElement barContainer;
         private int selected;
         private static IBarContent currentContent;
-        public void SetBarContent(IBarContent barContent)
+        public static void SetBarContent(IBarContent barContent)
         {
             currentContent = barContent;
-            if (Instance != null)
-            {
-               Rebuild();
-            }
+            Instance?.Rebuild();
         }
         public override void OnCreated()
         {
